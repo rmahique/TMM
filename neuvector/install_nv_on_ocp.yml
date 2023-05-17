@@ -1,0 +1,305 @@
+# Notice that this may not work with future versions of the operator or NeuVector.
+# This is intended as a template and to quickly install NeuVector on a test environment,
+# for production you may want to change some of the parameters.
+# 
+# To use the latest version of NeuVector use the community operator, as this is released quicker than for the certified one.
+# 
+# Feedback is always welcome and i hope this is useful for you!
+# 
+# Create the project
+---
+kind: Project
+apiVersion: project.openshift.io/v1
+metadata:
+  name: neuvector
+  labels:
+    kubernetes.io/metadata.name: neuvector
+...
+# Install the operator
+---
+kind: OperatorGroup
+apiVersion: operators.coreos.com/v1
+metadata:
+  namespace: neuvector
+  annotations:
+    olm.providedAPIs: Neuvector.v1alpha1.apm.neuvector.com
+  name: neuvector-operator
+  spec:
+    targetNamespaces:
+    - neuvector
+    upgradeStrategy: Default
+...
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  # Change this value to one of the following values:
+  # - neuvector-certified-operator
+  # - neuvector-community-operator
+  # - neuvector-certified-operator-rhmp  # this is no longer maintained.
+  name: neuvector-certified-operator
+  # Change this to one of the following values:
+  # - neuvector-certified-operator.neuvector
+  # - neuvector-community-operator.neuvector
+  # - neuvector-certified-operator-rhmp.neuvector  # this is no longer maintained.
+  labels:
+    operators.coreos.com/neuvector-certified-operator.neuvector: ""
+  namespace: neuvector
+  generation: 1
+spec:
+  channel: beta
+  installPlanApproval: Automatic
+  # Change this value to one of the following values:
+  # - name: neuvector-certified-operator
+  #   source: certified-operators
+  # - name: neuvector-community-operator
+  #   source: community-operators
+  # - name: neuvector-certified-operator-rhmp  # this is no longer maintained.
+  #   source: redhat-marketplace
+  name: neuvector-certified-operator
+  source: certified-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: neuvector-operator.v1.3.8
+...
+# Now create the instance
+---
+apiVersion: apm.neuvector.com/v1alpha1
+kind: Neuvector
+metadata:
+  name: neuvector
+  namespace: neuvector
+spec:
+  openshift: true
+  oem: ''
+  imagePullSecrets: ''
+  psp: false
+  rbac: true
+  serviceAccount: default
+  controller:
+    enabled: true
+    annotations: {}
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    image: >-
+      registry.connect.redhat.com/neuvector/controller:latest
+    replicas: 3
+    disruptionbudget: 0
+    schedulerName: ''
+    priorityClassName: ''
+    podLabels: {}
+    podAnnotations: {}
+    env: []
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - neuvector-controller-pod
+              topologyKey: kubernetes.io/hostname
+    tolerations: []
+    nodeSelector: {}
+    apisvc:
+      type: ''
+      annotations: {}
+      route:
+        enabled: false
+        termination: passthrough
+        host: ''
+        tls: ''
+    ranchersso:
+      enabled: false
+    pvc:
+      enabled: false
+      existingClaim: false
+      accessModes:
+        - ReadWriteMany
+      storageClass: ''
+      capacity: ''
+    azureFileShare:
+      enabled: false
+      secretName: ''
+      shareName: ''
+    certificate:
+      secret: ''
+      keyFile: tls.key
+      pemFile: tls.pem
+    internal:
+      certificate:
+        secret: ''
+        keyFile: cert.key
+        pemFile: cert.pem
+        caFile: ca.cert
+    federation:
+      mastersvc:
+        type: ''
+        ingress:
+          enabled: false
+          host: ''
+          ingressClassName: ''
+          path: /
+          annotations:
+            nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+          tls: false
+          secretName: ''
+        annotations: {}
+        route:
+          enabled: false
+          termination: passthrough
+          host: ''
+          tls: ''
+      managedsvc:
+        type: ''
+        ingress:
+          enabled: false
+          host: ''
+          ingressClassName: ''
+          path: /
+          annotations:
+            nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+          tls: false
+          secretName: ''
+        annotations: {}
+        route:
+          enabled: false
+          termination: passthrough
+          host: ''
+          tls: ''
+    ingress:
+      enabled: false
+      host: ''
+      ingressClassName: ''
+      path: /
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+      tls: false
+      secretName: ''
+    resources: {}
+    configmap:
+      enabled: false
+      data: ''
+    secret:
+      enabled: false
+      data: {}
+  enforcer:
+    enabled: true
+    image: >-
+      registry.connect.redhat.com/neuvector/enforcer:latest
+    updateStrategy:
+      type: RollingUpdate
+    priorityClassName: ''
+    podLabels: {}
+    podAnnotations: {}
+    tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+    resources: {}
+    internal:
+      certificate:
+        secret: ''
+        keyFile: cert.key
+        pemFile: cert.pem
+        caFile: ca.cert
+  manager:
+    enabled: true
+    image: >-
+      registry.connect.redhat.com/neuvector/manager:latest
+    priorityClassName: ''
+    env:
+      ssl: true
+    svc:
+      type: NodePort
+      loadBalancerIP: ''
+      annotations: {}
+    route:
+      enabled: true
+      termination: passthrough
+      host: ''
+      tls: ''
+    certificate:
+      secret: ''
+      keyFile: tls.key
+      pemFile: tls.pem
+    ingress:
+      enabled: false
+      host: ''
+      ingressClassName: ''
+      path: /
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+      tls: false
+      secretName: ''
+    resources: {}
+    affinity: {}
+    podLabels: {}
+    podAnnotations: {}
+    tolerations: []
+    nodeSelector: {}
+    runAsUser: ''
+  cve:
+    updater:
+      enabled: true
+      secure: false
+      image: registry.access.redhat.com/ubi8
+      schedule: 0 0 * * *
+      priorityClassName: ''
+      podLabels: {}
+      podAnnotations: {}
+      nodeSelector: {}
+      runAsUser: ''
+    scanner:
+      enabled: true
+      replicas: 3
+      dockerPath: ''
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 0
+      image: >-
+        registry.connect.redhat.com/neuvector/scanner:latest
+      priorityClassName: ''
+      resources: {}
+      affinity: {}
+      podLabels: {}
+      podAnnotations: {}
+      tolerations: []
+      nodeSelector: {}
+      runAsUser: ''
+      internal:
+        certificate:
+          secret: ''
+          keyFile: cert.key
+          pemFile: cert.pem
+          caFile: ca.cert
+  docker:
+    enabled: false
+    path: /var/run/docker.sock
+  resources: {}
+  k3s:
+    enabled: false
+    runtimePath: /run/k3s/containerd/containerd.sock
+  bottlerocket:
+    enabled: false
+    runtimePath: /run/dockershim.sock
+  containerd:
+    enabled: false
+    path: /var/run/containerd/containerd.sock
+  crio:
+    enabled: true
+    path: /var/run/crio/crio.sock
+  admissionwebhook:
+    type: ClusterIP
+  crdwebhook:
+    enabled: true
+    type: ClusterIP
+...
